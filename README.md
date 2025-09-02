@@ -43,6 +43,8 @@ You’ll enter these in the app’s first screen.
    - `username.csv` and `username_comments.csv`
    - `<subreddit>_posts.csv`
    - Media in `username_images/` or `<subreddit>/`
+  
+The app when downloaded can be marked dangerous by windows defender, this can be safely ignored
 
 ---
 
@@ -63,3 +65,4 @@ pip install praw requests pywebview certifi
 
 # 3) run
 python RedditMassScraper.py
+
