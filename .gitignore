@@ -1,0 +1,27 @@
+notes.txt
+
+RedditMassScraper.spec
+
+# Virtual envs
+venv/
+.venv/
+env/
+.env/
+.env*/
+
+# Build artifacts
+dist/
+build/
+*.spec
+
+# OS / Editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Logs
+*.log
+
+# Binaries (we publish exe via Releases, not the repo)
+*.exe

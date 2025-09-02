@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link rel="stylesheet" href="pico-main/css/pico.min.css">
+  <meta charset="UTF-8">
+  <title>RedditMassScraper</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    input, select, button { margin: 5px 0; padding: 8px; }
+    section { margin-top: 2rem; }
+    .hidden { display: none; }
+    #log {
+      background: #111;
+      color: #0f0;
+      font-family: monospace;
+      font-size: 14px;
+      padding: 10px;
+      border-radius: 5px;
+      margin-top: 20px;
+      height: 200px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <h1>Reddit Mass Scraper</h1>
+
+    <!-- Credentials -->
+    <section id="credentials_section">
+      <h3>Enter your Reddit credentials</h3>
+      <input id="client_id" placeholder="Client ID">
+      <input id="client_secret" placeholder="Client Secret">
+      <input id="username" placeholder="Your Reddit Username">
+      <button onclick="checkCredentials()">Check Credentials</button>
+      <div id="result"></div>
+    </section>
+
+    <!-- Mode selector -->
+    <section id="mode_section" class="hidden">
+      <h3>Select Mode</h3>
+      <button onclick="showUser()">User Mode</button>
+      <button onclick="showSubreddit()">Subreddit Mode</button>
+    </section>
+
+    <!-- User Scraper -->
+    <section id="user_section" class="hidden">
+      <h3>Scrape a User</h3>
+      <input id="user_target" type="text" placeholder="Username">
+      <input id="user_limit" type="number" placeholder="Limit">
+      <button onclick="scrapeUser()">Scrape User</button>
+      <button onclick="goBack()">⬅ Back</button>
+    </section>
+
+    <!-- Subreddit Scraper -->
+    <section id="subreddit_section" class="hidden">
+      <h3>Scrape a Subreddit</h3>
+      <input id="subreddit" type="text" placeholder="Subreddit">
+      <input id="sub_limit" type="number" placeholder="Limit">
+      <select id="time_filter">
+        <option value="all">All Time</option>
+        <option value="hour">Past Hour</option>
+        <option value="day">Past Day</option>
+        <option value="week">Past Week</option>
+        <option value="month">Past Month</option>
+        <option value="year">Past Year</option>
+      </select>
+      <button onclick="scrapeSubreddit()">Scrape Subreddit</button>
+      <button onclick="goBack()">⬅ Back</button>
+    </section>
+
+    <!-- Live log -->
+    <h3>Status Log</h3>
+    <div id="log"></div>
+  </main>
+
+  <script src="index.js"></script>
+</body>
+</html>

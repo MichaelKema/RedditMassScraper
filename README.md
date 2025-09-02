@@ -1,57 +1,65 @@
 # RedditScraper
-A Reddit Mass Scraper
 
-Step-by-Step Installation Guide
+A tiny desktop app to mass-download Reddit posts/comments to CSV (and optionally images/videos), powered by the official Reddit API.
 
-1. Clone the GitHub Repository
-First, clone your GitHub repository containing(Put the text below in the terminal) 
+> **Status:** alpha — expect rough edges and fast updates.
 
-git clone https://github.com/your-username/reddit-mass-scraper.git
-cd reddit-mass-scraper
+---
 
-2. Install Python
-Ensure Python 3.x is installed on your system. You can check the Python version with in your terminal:
+##  Features
+- GUI (no terminal prompts) via **pywebview**
+- Validate Reddit **Client ID/Secret** in-app
+- **User** mode: posts + comments → CSV (+ media)
+- **Subreddit** mode: top posts by `hour/day/week/month/year/all`
+- Portable Windows **.exe** (no Python install needed)
+- Live status log
+- Optional “Check for updates” (GitHub Releases)
 
-python --version
+---
 
-3.Install pip
-
-If pip is not installed with Python, install it using your package manager or by following the instructions on pip.pypa.io.
-
-4. Install Required Python Packages
-Navigate to the project directory and install the required Python packages using pip and the requirements.txt file:
-
-Type this into the termial:
-
-cd reddit-mass-scraper
-pip install -r requirements.txt
+##  Download
+Get the latest Windows `.exe` from **Releases**:  
 
 
-5. Set Up Reddit API Credentials
+> On some Windows 10 PCs you may need the **Microsoft Edge WebView2 Runtime** installed. Windows 11 usually has it already.
 
-You need a reddit account for this program to work
+---
 
-You will require a reddit  client id and client secret
+##  Reddit API credentials
+You need a **Client ID** and **Client Secret** from Reddit (free).  
+Guide: https://www.geeksforgeeks.org/how-to-get-client_id-and-client_secret-for-python-reddit-api-registration/#
 
-You can go to this link to learn how to get it: https://www.geeksforgeeks.org/how-to-get-client_id-and-client_secret-for-python-reddit-api-registration/#
+You’ll enter these in the app’s first screen.
 
-  I. Go Login or create a reddit account if you need one
+---
 
-  II. Go to https://www.reddit.com/prefs/apps/
+## How to use (quick)
+1. Open the app.
+2. Enter **Client ID**, **Client Secret**, **Reddit username** → **Check Credentials**.
+3. Pick **User** or **Subreddit** mode.
+4. Fill fields (username/subreddit, limit, time filter) → start.
+5. Watch the **Status Log**.  
+6. Output files are created next to the app:
+   - `username.csv` and `username_comments.csv`
+   - `<subreddit>_posts.csv`
+   - Media in `username_images/` or `<subreddit>/`
 
-  III. Go the the bottom where it says ("are you a developer? create an app)
+---
 
-  IV. Enter a name for the app
+## Run from source (dev)
 
-  V. Select anyo of the three wehter it be web app, installed app, or script
+Requirements: Python 3.10+ (Windows/macOS/Linux)
 
-  VI. fill the redirect url with local host like http://localhost:8080/ or anything else you use
+```bash
+# 1) create & activate venv
+python -m venv venv
+# Windows
+.\venv\Scripts\activate
+# macOS/Linux
+source venv/bin/activate
 
-  VII. The  line of letter and numbers under the personal use script is your client ID
+# 2) install deps
+pip install praw requests pywebview certifi
 
-  VIII. The random string of letter and numbers after the word secret is your Client Secret
-
- You might have to click edit under developed applications to see it
-
-
-It will download the comments and written posts as csv files
+# 3) run
+python RedditMassScraper.py
