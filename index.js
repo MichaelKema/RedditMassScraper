@@ -4,7 +4,6 @@ function addLog(m){ const el = document.getElementById("log"); if(el){ el.innerT
 
 window.addEventListener('pywebviewready', () => {
   apiReady = true;
-  addLog('pywebview ready');
 });
 
 function val(id){ return (document.getElementById(id)?.value || "").trim(); }
@@ -78,4 +77,15 @@ async function scrapeSubreddit() {
     document.getElementById("time_filter").value
   );
   addLog("✅ Subreddit scrape complete.");
+}
+
+async function checkUpdates() {
+  const res = await pywebview.api.check_updates();
+  if (res.update) {
+    addLog("Update available: " + res.latest);
+    addLog("Opening download page…");
+    await pywebview.api.open_url(res.url);
+  } else {
+    addLog("You’re up to date.");
+  }
 }

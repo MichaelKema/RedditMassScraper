@@ -2,6 +2,15 @@ notes.txt
 
 RedditMassScraper.spec
 
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+*.so
+*.dylib
+
+
 # Virtual envs
 venv/
 .venv/
@@ -25,3 +34,14 @@ Thumbs.db
 
 # Binaries (we publish exe via Releases, not the repo)
 *.exe
+
+# Node/pico-main extras (ignore non-CSS)
+pico-main/.github/
+pico-main/.prettierrc
+pico-main/LICENSE.md
+pico-main/README.md
+pico-main/composer.json
+pico-main/package.json
+pico-main/yarn.lock
+pico-main/scripts/
+pico-main/scss/

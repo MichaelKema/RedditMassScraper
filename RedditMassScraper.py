@@ -12,6 +12,33 @@ os.environ['SSL_CERT_FILE'] = certifi.where()
 os.environ['REQUESTS_CA_BUNDLE'] = certifi.where()
 
 
+APP_VERSION = "0.1.1-alpha"
+RELEASE_API = "https://api.github.com/repos/MichaelKema/RedditMassScraper/releases"
+
+def check_updates():
+    try:
+        r = requests.get(RELEASE_API, headers={"User-Agent": "RedditMassScraper"}, timeout=10)
+        r.raise_for_status()
+        data = r.json()[0]  # most recent release
+        latest_version = data["tag_name"]
+        exe_url = None
+        for asset in data.get("assets", []):
+            if asset["name"].endswith(".exe"):
+                exe_url = asset["browser_download_url"]
+                break
+
+        if latest_version != APP_VERSION:
+            log(f"⬆️ Update available: {latest_version} (you have {APP_VERSION})")
+            log(f"Download here: {exe_url or data['html_url']}")
+            return {"update": True, "latest": latest_version, "url": exe_url or data["html_url"]}
+        else:
+            log(f"✅ Up to date (v{APP_VERSION})")
+            return {"update": False, "latest": latest_version}
+    except Exception as e:
+        log(f"❌ Update check failed: {e}")
+        return {"update": False, "error": str(e)}
+
+
 reddit = None
 
 

@@ -1,0 +1,46 @@
+html, body {
+  background-color: #131313 !important;
+}
+
+.layout {
+  display: flex;
+  gap: 2rem;          /* spacing between form and log */
+  align-items: flex-start;
+}
+
+.form {
+  flex: 2;            /* make the form take more space */
+}
+
+.log-panel {
+  flex: 1;            /* smaller side panel */
+}
+
+
+@font-face {
+  font-family: 'Inter';
+  src: url('fonts/Inter/InterVariable.woff2') format('woff2'),
+       url('fonts/Inter/InterVariable.woff2') format('woff');
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Liberation Mono';
+  src: url('fonts/LiberationMono/LiberationMono-Regular.ttf') format('ttf');
+  font-weight: 400;
+  font-style: normal;
+}
+.page-title{
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+}
+
+
+/* Bold */
+@font-face {
+  font-family: 'Inter';
+  src: url('fonts/Inter/Inter-Bold.woff2') format('woff2');
+  font-weight: 700;   /* bold weight */
+  font-style: normal;
+}
