@@ -1,2 +1,2 @@
-pico-main/* linguist-vendored
-style/fonts/* linguist-vendored
+pico-main/** linguist-vendored
+style/fonts/** linguist-vendored
