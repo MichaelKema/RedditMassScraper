@@ -21,13 +21,15 @@ def check_updates():
         r.raise_for_status()
         data = r.json()[0]  # most recent release
         latest_version = data["tag_name"]
+        latest_normalized = latest_version.removeprefix("v")
+        current_normalized = APP_VERSION.removeprefix("v")
         exe_url = None
         for asset in data.get("assets", []):
             if asset["name"].endswith(".exe"):
                 exe_url = asset["browser_download_url"]
                 break
 
-        if latest_version != APP_VERSION:
+        if latest_normalized != current_normalized:
             log(f"⬆️ Update available: {latest_version} (you have {APP_VERSION})")
             log(f"Download here: {exe_url or data['html_url']}")
             return {"update": True, "latest": latest_version, "url": exe_url or data["html_url"]}
