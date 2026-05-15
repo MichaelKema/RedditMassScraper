@@ -79,6 +79,85 @@
       <div id="log"></div>
     </div>
   </div>
+
+  <section id="analytics_section" class="hidden analytics-panel">
+    <div class="section-heading">
+      <h3>Analytics</h3>
+      <span id="analytics_target"></span>
+    </div>
+
+    <div class="analytics-actions">
+      <button id="download_button" onclick="downloadResults()">Download</button>
+      <button id="toggle_posts_button" class="secondary" onclick="toggleDataTables()">Show all posts</button>
+    </div>
+
+    <div id="metrics_grid" class="metrics-grid"></div>
+
+    <div id="highest_post" class="highlight-post"></div>
+
+    <div class="visual-grid">
+      <section class="visual-block">
+        <h4>Top Posts by Score</h4>
+        <div id="top_posts_chart" class="bar-chart"></div>
+      </section>
+
+      <section class="visual-block">
+        <h4>Posting Frequency by Day</h4>
+        <div id="frequency_day_chart" class="bar-chart"></div>
+      </section>
+
+      <section class="visual-block">
+        <h4>Posting Frequency by Week</h4>
+        <div id="frequency_week_chart" class="bar-chart"></div>
+      </section>
+
+      <section class="visual-block">
+        <h4>Posting Frequency by Month</h4>
+        <div id="frequency_month_chart" class="bar-chart"></div>
+      </section>
+    </div>
+
+    <section id="data_tables" class="data-tables hidden">
+      <div class="section-heading">
+        <h3>Post Data</h3>
+        <span id="post_count_label"></span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Score</th>
+              <th>Comments</th>
+              <th>Created</th>
+              <th>Link</th>
+            </tr>
+          </thead>
+          <tbody id="posts_table_body"></tbody>
+        </table>
+      </div>
+
+      <div id="comments_data_block" class="comments-data hidden">
+        <div class="section-heading">
+          <h3>Comment Data</h3>
+          <span id="comment_count_label"></span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Body</th>
+                <th>Subreddit</th>
+                <th>Score</th>
+                <th>Link</th>
+              </tr>
+            </thead>
+            <tbody id="comments_table_body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </section>
 </main>
 
   <script src="index.js"></script>

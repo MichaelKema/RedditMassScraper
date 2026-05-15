@@ -1,12 +1,15 @@
 import praw
 import csv
+import math
 import os
 import sys
 import requests
 import webview
+from datetime import datetime, timezone
 from requests.auth import HTTPBasicAuth
 from urllib.parse import urlparse
 from pathlib import Path
+from statistics import median
 import certifi, os
 os.environ['SSL_CERT_FILE'] = certifi.where()
 os.environ['REQUESTS_CA_BUNDLE'] = certifi.where()
@@ -78,7 +81,112 @@ def download_media(url, directory):
         log(f"❌ Error: {e}")
 
 
+def is_media_url(url):
+    return url.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.mp4'))
+
+
+def safe_filename(value):
+    return "".join(char for char in value if char.isalnum() or char in ("-", "_", ".")).strip() or "scrape"
+
+
+def normalize_limit(limit, default=25, maximum=1000):
+    try:
+        if isinstance(limit, float) and math.isnan(limit):
+            return default
+        parsed = int(limit)
+    except (TypeError, ValueError):
+        return default
+    return max(1, min(parsed, maximum))
+
+
+def build_post_record(submission):
+    created = datetime.fromtimestamp(submission.created_utc, tz=timezone.utc)
+    return {
+        "Title": submission.title,
+        "URL": submission.url,
+        "Permalink": f"https://www.reddit.com{submission.permalink}",
+        "Created": created.strftime("%Y-%m-%d %H:%M UTC"),
+        "created_utc": submission.created_utc,
+        "score": submission.score,
+        "num_comments": submission.num_comments,
+        "id": submission.id
+    }
+
+
+def build_comment_record(comment):
+    return {
+        "Comment ID": comment.id,
+        "Comment URL": f"https://www.reddit.com{comment.permalink}",
+        "Comment Body": comment.body.replace("\n", " "),
+        "Subreddit": comment.subreddit.display_name,
+        "Score": comment.score
+    }
+
+
+def increment_frequency(frequencies, created_utc):
+    dt = datetime.fromtimestamp(created_utc, tz=timezone.utc)
+    iso_year, iso_week, _ = dt.isocalendar()
+    keys = {
+        "day": dt.strftime("%Y-%m-%d"),
+        "week": f"{iso_year}-W{iso_week:02d}",
+        "month": dt.strftime("%Y-%m")
+    }
+
+    for group, key in keys.items():
+        frequencies[group][key] = frequencies[group].get(key, 0) + 1
+
+
+def frequency_items(values):
+    return [{"label": key, "count": values[key]} for key in sorted(values)]
+
+
+def build_analytics(posts, scraped_comment_count=None):
+    scores = [post["score"] for post in posts]
+    comment_counts = [post["num_comments"] for post in posts]
+    frequencies = {"day": {}, "week": {}, "month": {}}
+
+    for post in posts:
+        increment_frequency(frequencies, post["created_utc"])
+
+    highest_post = max(posts, key=lambda post: post["score"], default=None)
+    top_posts = sorted(posts, key=lambda post: post["score"], reverse=True)[:10]
+
+    analytics = {
+        "total_posts": len(posts),
+        "total_comments": sum(comment_counts),
+        "average_score": round(sum(scores) / len(scores), 2) if scores else 0,
+        "median_score": median(scores) if scores else 0,
+        "average_comments_per_post": round(sum(comment_counts) / len(comment_counts), 2) if comment_counts else 0,
+        "highest_scoring_post": highest_post,
+        "frequency": {
+            "day": frequency_items(frequencies["day"]),
+            "week": frequency_items(frequencies["week"]),
+            "month": frequency_items(frequencies["month"])
+        },
+        "top_posts": top_posts
+    }
+
+    if scraped_comment_count is not None:
+        analytics["scraped_user_comments"] = scraped_comment_count
+
+    return analytics
+
+
+def write_csv(path, rows):
+    if not rows:
+        return None
+
+    with open(path, mode="w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=rows[0].keys())
+        writer.writeheader()
+        writer.writerows(rows)
+    return path
+
+
 class Api:
+    def __init__(self):
+        self.last_scrape = None
+
     def check_credentials(self, client_id, client_secret, agent_input):
         global reddit
         try:
@@ -135,86 +243,114 @@ class Api:
     def scrape_user(self, username, limit):
         if reddit is None:
             log("❌ Please check credentials first.")
-            return False
+            return {"ok": False, "error": "Please check credentials first."}
+
+        limit = normalize_limit(limit)
+        username = (username or "").strip()
+        if not username:
+            log("❌ Missing username.")
+            return {"ok": False, "error": "Missing username"}
 
         redditor = reddit.redditor(username)
         posts = []
-        image_directory = os.path.join(os.getcwd(), f"{username}_images")
-        os.makedirs(image_directory, exist_ok=True)
 
         for i, submission in enumerate(redditor.submissions.new(limit=limit), start=1):
             log(f"Scraping u/{username}: {i}/{limit}")
-            posts.append({
-                "Title": submission.title,
-                "URL": submission.url,
-                "created_utc": submission.created_utc,
-                "score": submission.score,
-                "num_comments": submission.num_comments,
-                "id": submission.id
-            })
-            if submission.url.endswith(('.jpg', '.jpeg', '.png', '.gif', '.mp4')):
-                download_media(submission.url, image_directory)
+            posts.append(build_post_record(submission))
 
         if posts:
-            csv_file = f"{username}.csv"
-            with open(csv_file, mode="w", newline="", encoding="utf-8") as f:
-                writer = csv.DictWriter(f, fieldnames=posts[0].keys())
-                writer.writeheader()
-                writer.writerows(posts)
-            log(f"✅ Finished scraping u/{username} ({len(posts)} posts). Saved to {csv_file}")
+            log(f"✅ Finished scraping u/{username} ({len(posts)} posts).")
         else:
             log(f"⚠️ No posts found for u/{username}")
 
         # Scrape comments
-        output_file = f"{username}_comments.csv"
-        with open(output_file, mode="w", newline="", encoding="utf-8") as f:
-            writer = csv.writer(f)
-            writer.writerow(["Comment ID", "Comment URL", "Comment Body", "Subreddit", "Score"])
-            for comment in redditor.comments.new(limit=limit):
-                writer.writerow([
-                    comment.id,
-                    f"https://www.reddit.com{comment.permalink}",
-                    comment.body.replace("\n", " "),
-                    comment.subreddit.display_name,
-                    comment.score
-                ])
-        log(f"✅ Comments saved to {output_file}")
-        return True
+        comments = []
+        for comment in redditor.comments.new(limit=limit):
+            comments.append(build_comment_record(comment))
+        log(f"✅ Collected {len(comments)} comments.")
+
+        result = {
+            "ok": True,
+            "kind": "user",
+            "target": username,
+            "posts": posts,
+            "comments": comments,
+            "analytics": build_analytics(posts, len(comments))
+        }
+        self.last_scrape = result
+        return result
 
     # --- Scrape a subreddit ---
     def scrape_subreddit(self, subreddit_name, limit, time_filter):
         if reddit is None:
             log("❌ Please check credentials first.")
-            return False
+            return {"ok": False, "error": "Please check credentials first."}
+
+        limit = normalize_limit(limit)
+        subreddit_name = (subreddit_name or "").strip()
+        if not subreddit_name:
+            log("❌ Missing subreddit.")
+            return {"ok": False, "error": "Missing subreddit"}
 
         subreddit = reddit.subreddit(subreddit_name)
-        directory = os.path.join(os.getcwd(), subreddit_name)
-        os.makedirs(directory, exist_ok=True)
         posts = []
 
         for i, submission in enumerate(subreddit.top(limit=limit, time_filter=time_filter), start=1):
             log(f"Scraping r/{subreddit_name}: {i}/{limit}")
-            posts.append({
-                "Title": submission.title,
-                "URL": submission.url,
-                "created_utc": submission.created_utc,
-                "score": submission.score,
-                "num_comments": submission.num_comments,
-                "id": submission.id
-            })
-            if submission.url.endswith(('.jpg', '.jpeg', '.png', '.gif', '.mp4')):
-                download_media(submission.url, directory)
+            posts.append(build_post_record(submission))
 
         if posts:
-            csv_file = f"{subreddit_name}_posts.csv"
-            with open(csv_file, mode="w", newline="", encoding="utf-8") as f:
-                writer = csv.DictWriter(f, fieldnames=posts[0].keys())
-                writer.writeheader()
-                writer.writerows(posts)
-            log(f"✅ Finished scraping r/{subreddit_name} ({len(posts)} posts). Saved to {csv_file}")
+            log(f"✅ Finished scraping r/{subreddit_name} ({len(posts)} posts).")
         else:
             log(f"⚠️ No posts found in r/{subreddit_name}")
-        return True
+
+        result = {
+            "ok": True,
+            "kind": "subreddit",
+            "target": subreddit_name,
+            "posts": posts,
+            "comments": [],
+            "analytics": build_analytics(posts)
+        }
+        self.last_scrape = result
+        return result
+
+    def download_last_scrape(self):
+        if not self.last_scrape:
+            log("❌ Nothing to download yet. Run a scrape first.")
+            return {"ok": False, "error": "Nothing to download yet. Run a scrape first."}
+
+        kind = self.last_scrape["kind"]
+        target = safe_filename(self.last_scrape["target"])
+        posts = self.last_scrape.get("posts", [])
+        comments = self.last_scrape.get("comments", [])
+        outputs = []
+
+        if kind == "user":
+            post_csv = write_csv(f"{target}.csv", posts)
+            comment_csv = write_csv(f"{target}_comments.csv", comments)
+            media_directory = os.path.join(os.getcwd(), f"{target}_images")
+            if post_csv:
+                outputs.append(post_csv)
+            if comment_csv:
+                outputs.append(comment_csv)
+        else:
+            post_csv = write_csv(f"{target}_posts.csv", posts)
+            media_directory = os.path.join(os.getcwd(), target)
+            if post_csv:
+                outputs.append(post_csv)
+
+        media_count = 0
+        media_posts = [post for post in posts if is_media_url(post["URL"])]
+        if media_posts:
+            os.makedirs(media_directory, exist_ok=True)
+            for post in media_posts:
+                download_media(post["URL"], media_directory)
+                media_count += 1
+            outputs.append(media_directory)
+
+        log(f"✅ Download complete. Created: {', '.join(outputs) if outputs else 'no files'}")
+        return {"ok": True, "outputs": outputs, "media_count": media_count}
 
 
 
