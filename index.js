@@ -65,6 +65,7 @@ function renderAnalytics(result) {
   }
 
   lastScrapeResult = result;
+  resetOverview();
   const analytics = result.analytics || {};
   const section = document.getElementById("analytics_section");
   const target = document.getElementById("analytics_target");
@@ -113,6 +114,51 @@ function renderAnalytics(result) {
   renderDataTables(result);
 
   section?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function resetOverview() {
+  document.getElementById("overview_text").textContent = "";
+  document.getElementById("overview_status").textContent = "AI summaries may contain mistakes. Check them against the scraped data.";
+  const button = document.getElementById("overview_button");
+  button.disabled = !(lastScrapeResult?.posts?.length || lastScrapeResult?.comments?.length);
+  button.textContent = "Generate summary";
+  button.setAttribute("aria-busy", "false");
+}
+
+async function generateOverview() {
+  if (!apiReady || !lastScrapeResult) return;
+  const scrapeId = lastScrapeResult.scrape_id;
+  const button = document.getElementById("overview_button");
+  const status = document.getElementById("overview_status");
+  if (button.disabled) return;
+  button.disabled = true;
+  button.textContent = "Generating summary…";
+  button.setAttribute("aria-busy", "true");
+  status.textContent = "Creating your AI summary…";
+  try {
+    const result = await pywebview.api.generate_overview(scrapeId);
+    if (lastScrapeResult?.scrape_id !== scrapeId) return;
+    if (!result?.ok) {
+      status.textContent = result?.error || "Could not generate an overview. Try again.";
+      return;
+    }
+    // Model output is untrusted text: never render it as HTML or executable Markdown.
+    document.getElementById("overview_text").textContent = result.overview;
+    status.textContent = `Based on ${result.coverage.sampled_posts} of ${lastScrapeResult.posts.length} post titles and ${result.coverage.sampled_comments} of ${lastScrapeResult.comments.length} comments, plus full-result statistics. Text may be shortened. Check AI claims against the data.`;
+    button.textContent = "Summary generated";
+  } catch {
+    if (lastScrapeResult?.scrape_id === scrapeId) {
+      status.textContent = "Could not generate an overview. Try again.";
+    }
+  } finally {
+    if (lastScrapeResult?.scrape_id === scrapeId) {
+      button.setAttribute("aria-busy", "false");
+      if (button.textContent !== "Summary generated") {
+        button.disabled = false;
+        button.textContent = "Generate summary";
+      }
+    }
+  }
 }
 
 function renderDataTables(result) {
@@ -261,14 +307,22 @@ async function scrapeUser() {
 }
 
 async function scrapeSubreddit() {
+  const error = document.getElementById("subreddit_error");
+  error.textContent = "";
   addLog("Scraping subreddit...");
-  const result = await pywebview.api.scrape_subreddit(
-    val("subreddit"),
-    parseInt(val("sub_limit"), 10) || 25,
-    val("time_filter")
-  );
-  renderAnalytics(result);
-  if (result?.ok) addLog("✅ Subreddit scrape complete.");
+  try {
+    const result = await pywebview.api.scrape_subreddit(
+      val("subreddit"),
+      parseInt(val("sub_limit"), 10) || 25,
+      val("time_filter")
+    );
+    if (!result?.ok) error.textContent = result?.error || "Could not scrape this subreddit. Try again.";
+    renderAnalytics(result);
+    if (result?.ok) addLog("✅ Subreddit scrape complete.");
+  } catch {
+    error.textContent = "Could not scrape this subreddit. Please try again.";
+    addLog("❌ " + error.textContent);
+  }
 }
 
 async function checkUpdates() {

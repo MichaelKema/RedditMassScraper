@@ -70,6 +70,7 @@
           <option value="year">Past Year</option>
         </select>
         <button onclick="scrapeSubreddit()">Scrape Subreddit</button>
+        <p id="subreddit_error" role="alert"></p>
         <button onclick="goBack()">⬅ Back</button>
       </section>
     </div>
@@ -94,6 +95,14 @@
     <div id="metrics_grid" class="metrics-grid"></div>
 
     <div id="highest_post" class="highlight-post"></div>
+
+    <section class="visual-block overview-panel" aria-labelledby="overview_heading">
+      <h4 id="overview_heading">AI summary</h4>
+      <p class="empty-state">Summarize the main themes, engagement, and notable findings in your scraped results.</p>
+      <button id="overview_button" class="secondary" onclick="generateOverview()">Generate summary</button>
+      <p id="overview_status" class="empty-state" role="status" aria-live="polite"></p>
+      <div id="overview_text" class="overview-text"></div>
+    </section>
 
     <div class="visual-grid">
       <section class="visual-block">

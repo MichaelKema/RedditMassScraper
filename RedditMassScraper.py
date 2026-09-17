@@ -1,4 +1,5 @@
 import praw
+import prawcore
 import csv
 import math
 import os
@@ -10,12 +11,16 @@ from requests.auth import HTTPBasicAuth
 from urllib.parse import urlparse
 from pathlib import Path
 from statistics import median
+from threading import Lock
+from time import monotonic
+from uuid import uuid4
+from ai_overview import generate_overview, OverviewError
 import certifi, os
 os.environ['SSL_CERT_FILE'] = certifi.where()
 os.environ['REQUESTS_CA_BUNDLE'] = certifi.where()
 
 
-APP_VERSION = "0.1.1-alpha"
+APP_VERSION = "0.1.3-alpha"
 RELEASE_API = "https://api.github.com/repos/MichaelKema/RedditMassScraper/releases"
 
 def check_updates():
@@ -186,6 +191,34 @@ def write_csv(path, rows):
 class Api:
     def __init__(self):
         self.last_scrape = None
+        self._overview_lock = Lock()
+        self._overview_cache = None
+        self._overview_next_attempt = 0
+
+    def generate_overview(self, scrape_id):
+        # pywebview can dispatch simultaneous bridge calls on separate threads.
+        if not self._overview_lock.acquire(blocking=False):
+            return {"ok": False, "error": "An overview is already being generated. Please wait."}
+        try:
+            result = self.last_scrape
+            if not result or result["scrape_id"] != scrape_id:
+                return {"ok": False, "error": "Run a scrape and generate an overview for the current results."}
+            if self._overview_cache and self._overview_cache["scrape_id"] == scrape_id:
+                return dict(self._overview_cache)
+            if monotonic() < self._overview_next_attempt:
+                return {"ok": False, "error": "Please wait 30 seconds between overview requests."}
+            self._overview_next_attempt = monotonic() + 30
+            overview = generate_overview(result)
+            if self.last_scrape is not result:
+                return {"ok": False, "error": "Results changed. Generate an overview for the new scrape."}
+            self._overview_cache = overview
+            return dict(overview)
+        except OverviewError as error:
+            return {"ok": False, "error": str(error)}
+        except Exception:
+            return {"ok": False, "error": "The overview could not be generated. Try again later."}
+        finally:
+            self._overview_lock.release()
 
     def check_credentials(self, client_id, client_secret, agent_input):
         global reddit
@@ -272,6 +305,7 @@ class Api:
         result = {
             "ok": True,
             "kind": "user",
+            "scrape_id": uuid4().hex,
             "target": username,
             "posts": posts,
             "comments": comments,
@@ -282,6 +316,24 @@ class Api:
 
     # --- Scrape a subreddit ---
     def scrape_subreddit(self, subreddit_name, limit, time_filter):
+        try:
+            return self._scrape_subreddit(subreddit_name, limit, time_filter)
+        except prawcore.NotFound:
+            message = "Subreddit not found. Check the spelling and try again."
+        except prawcore.Redirect:
+            message = "Reddit could not open this subreddit. Check the spelling and that it is accessible."
+        except prawcore.Forbidden:
+            message = "Reddit denied access to this subreddit. It may be private or restricted."
+        except prawcore.TooManyRequests:
+            message = "Reddit's rate limit was reached. Please try again later."
+        except (prawcore.RequestException, requests.RequestException):
+            message = "Could not connect to Reddit. Check your connection and try again."
+        except Exception:
+            # Never send raw API exceptions or request details across the bridge.
+            message = "Could not scrape this subreddit. Check your Reddit credentials and try again."
+        return {"ok": False, "error": message}
+
+    def _scrape_subreddit(self, subreddit_name, limit, time_filter):
         if reddit is None:
             log("❌ Please check credentials first.")
             return {"ok": False, "error": "Please check credentials first."}
@@ -307,6 +359,8 @@ class Api:
         result = {
             "ok": True,
             "kind": "subreddit",
+            "scrape_id": uuid4().hex,
+            "time_filter": time_filter,
             "target": subreddit_name,
             "posts": posts,
             "comments": [],

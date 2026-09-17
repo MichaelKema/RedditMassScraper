@@ -9,8 +9,10 @@ __pycache__/
 *.pyd
 *.so
 *.dylib
-
-
+*.env.example
+*.env
+.env.*
+!.env.example
 # Virtual envs
 venv/
 .venv/
